@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>gunzip demo</title>
+</head>
+<body>
+	<canvas></canvas>
+	<script src="zlib.js"></script>
+	<script src="png.js"></script>
+	<script>
+		var xhr = new XMLHttpRequest();
+		xhr.open("GET", 'rgba.png.gz', true);
+		xhr.responseType = "arraybuffer";
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState == 4) {
+				new PNG(zlib.gunzip(xhr.response).buffer).renderTo(document.querySelector('canvas'));
+			}
+		};
+		xhr.send();
+	</script>
+</body>
+</html>
