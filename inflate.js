@@ -63,7 +63,6 @@
 		var bytesPos = headless ? 0 : 2; // 78 xx ...
 		var bitBuf = 0, bitBufLen = 0;
 		var buffer = new Uint8Array(512), bufferLen = 0, limit = 512;
-		var pos = 0;
 		var notEnd = true;
 		readBlocks: while (notEnd) {
 			// read block header
@@ -76,8 +75,7 @@
 				bytesPos += 2;
 				// var check = bytes[bytesPos++] | (bytes[bytesPos++] << 8);
 				var end = bufferLen + blockLen;
-				if (end > limit)
-					ensureBuffer(end);
+				ensureBuffer(end);
 				if (bytesPos + blockLen >= limit) {// end of stream
 					notEnd = false;
 					buffer.set(bytes.subarray(bytesPos), bufferLen);
@@ -133,8 +131,7 @@
 					continue readBlocks;
 				}
 				if (code1 < 256) {// decode 1 byte
-					if (pos + 1 > limit)
-						ensureBuffer(pos + 1);
+					ensureBuffer(pos + 1);
 					buffer[pos++] = code1;
 				} else { // repeat block
 					// code1 > 256
@@ -144,10 +141,8 @@
 					var dist = distDecode[getCode(distCodeTable)];
 					if (dist > 65535)
 						dist = (dist & 0xffff) + getBits(dist >> 16);
-					if ((len += pos) > limit)
-						ensureBuffer(len);
-					// buffer.set(buffer.subarray(pos - dist, len - dist),
-					// pos);
+					ensureBuffer(len += pos);
+					// buffer.set(buffer.subarray(pos - dist, len - dist), pos);
 					// pos = len;
 					for (; pos < len; pos++)
 						buffer[pos] = buffer[pos - dist];
@@ -164,6 +159,8 @@
 		}
 		function getBits(bits) {
 			while (bitBufLen < bits) {
+				if (bytesPos >= bytes.length)
+					throw 1;
 				bitBuf |= bytes[bytesPos++] << bitBufLen;
 				bitBufLen += 8;
 			}
@@ -175,6 +172,8 @@
 		function getCode(table) {
 			var size = table[1];
 			while (bitBufLen < size) {
+				if (bytesPos >= bytes.length)
+					throw 2;
 				bitBuf |= bytes[bytesPos++] << bitBufLen;
 				bitBufLen += 8;
 			}

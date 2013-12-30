@@ -21,7 +21,6 @@
 		this.datas.bytes = 0;
 		for ( var i = 8, L = data.byteLength; i < L;) {
 			var length = data.getUint32(i), name = String.fromCharCode.apply(null, arr.subarray(i + 4, i + 8)).toLowerCase();
-			// console.log(name, length);
 			name in chunks && chunks[name](this, data, i + 8, length);
 			// TODO: CRC validation
 			i += length + 12;
@@ -79,11 +78,17 @@
 			// TODO
 		},
 		rgb : function(png, pixels) {// RGB
-			// TODO
+			var L, decoded = png.data = new Uint8Array(L = png.width * png.height << 2);
+			for ( var i = 0, p = 0; i < L;) {
+				decoded[i++] = pixels[p++];
+				decoded[i++] = pixels[p++];
+				decoded[i++] = pixels[p++];
+				decoded[i++] = 255;
+			}
 		},
 		platte : function(png, pixels, scanlineLen) {// platte
 			var colors = png.colors, bitDepth;
-			var decoded = new Uint32Array((png.data = new Uint8Array(png.width * png.height * 4)).buffer);
+			var decoded = new Uint32Array((png.data = new Uint8Array(png.width * png.height << 2)).buffer);
 			if ((bitDepth = png.bitDepth) == 8) {
 				for ( var i = 0, L = pixels.length; i < L; i++) {
 					decoded[i] = colors[pixels[i]];
@@ -184,7 +189,7 @@
 			}
 			png.datas = null;
 			// Step.2 Decode data
-			zlib.inflate(buffer, false, function(buffer) {
+			zlib.inflate(buffer, false, function(buffer) {window.inflated=buffer;
 				var data = new Uint8Array(buffer);
 				// Step.3 Unfilter data
 				var bytesPerPixel, scanlineLen = Math.ceil((bytesPerPixel = png.bitDepth / 8 * colorChannels[png.colorMode])
@@ -192,13 +197,52 @@
 				bytesPerPixel = Math.ceil(bytesPerPixel);
 				var pixels = new Uint8Array(scanlineLen * png.height);
 				for ( var i = 0, p = 0, L = pixels.length; p < L;) {
+					// console.log(i / (scanlineLen + 1), data[i]);
 					var start = i + bytesPerPixel + 1, end = i + scanlineLen + 1;
 					switch (data[i++]) {
+					case 2: // Up
+						if (p) {
+							for (; i < end; i++, p++) {
+								pixels[p] = data[i] + (pixels[p - scanlineLen] | 0);
+							}
+							break;
+						}
+						console.log('found up at first line');
 					case 0: // None
 						pixels.set(new Uint8Array(buffer, i, scanlineLen), p);
 						p += scanlineLen;
 						i = end;
 						break;
+					case 3:// Average
+						if (p) {
+							for (; i < start; i++, p++) {
+								pixels[p] = data[i] + (pixels[p - scanlineLen] >> 1);
+							}
+							for (; i < end; i++, p++) {
+								pixels[p] = data[i] + (pixels[p - bytesPerPixel] + pixels[p - scanlineLen] >> 1);
+							}
+						} else {
+							while (i < start)
+								pixels[p++] = data[i++];
+							for (; i < end; i++, p++) {
+								pixels[p] = data[i] + (pixels[p - bytesPerPixel] >> 1);
+							}
+						}
+						break;
+					case 4: // Paeth
+						if (p) {
+							for (; i < start; i++, p++) {
+								pixels[p] = data[i] + pixels[p - scanlineLen];
+							}
+							for (; i < end; i++, p++) {
+								var a = pixels[p - bytesPerPixel], b = pixels[p - scanlineLen], c = pixels[p - bytesPerPixel
+									- scanlineLen], pa = Math.abs(b - c), pb = Math.abs(a - c), pc = Math.abs(a + b - c - c);
+
+								pixels[p] = data[i] + (pa <= pb ? pa <= pc ? a : c : pb <= pc ? b : c);
+							}
+							break;
+						}
+						console.log('found paeth at first line');
 					case 1: // Sub
 						while (i < start)
 							pixels[p++] = data[i++];
@@ -206,30 +250,8 @@
 							pixels[p] = data[i] + pixels[p - bytesPerPixel];
 						}
 						break;
-					case 2: // Up
-						for (; i < end; i++, p++) {
-							pixels[p] = data[i] + pixels[p - scanlineLen];
-						}
-						break;
-					case 3:// Average
-						for (; i < start; i++, p++) {
-							pixels[p] = data[i] + (pixels[p - scanlineLen] >> 1);
-						}
-						for (; i < end; i++, p++) {
-							pixels[p] = data[i] + (pixels[p - bytesPerPixel] + pixels[p - scanlineLen] >> 1);
-						}
-						break;
-					case 4: // Paeth
-						for (; i < start; i++, p++) {
-							pixels[p] = data[i] + pixels[p - scanlineLen];
-						}
-						for (; i < end; i++, p++) {
-							var a = pixels[p - bytesPerPixel], b = pixels[p - scanlineLen], c = pixels[p - bytesPerPixel
-								- scanlineLen], pa = Math.abs(b - c), pb = Math.abs(a - c), pc = Math.abs(a + b - c - c);
-
-							pixels[p] = data[i] + (pa <= pb ? pa <= pc ? a : c : pb <= pc ? b : c);
-						}
-						break;
+					default:
+						throw 'bad filter type: ' + i;
 					}
 				}
 				colorModes[png.colorMode](png, pixels, scanlineLen);

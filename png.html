@@ -59,8 +59,7 @@ div h2 {
 				var png = new PNG(new Uint8Array(reader.result));
 				png.onload = function() {
 					console.log(png);
-					var canvas = document.createElement('canvas');
-					png.renderTo(canvas);
+					document.body.appendChild(png.toCanvas());
 				};
 			};
 		});

@@ -21,6 +21,7 @@ var zlib = function(Worker, fromCharCode) {
 	}
 
 	var zlib = {
+		uuid : uuid,
 		crc32 : function crc32(buffer, i, end, crc) {
 			for (; i < end; i++) {
 				crc = crc_table[crc & 0xFF ^ buffer[i]] ^ (crc >> 8 & 0xFFFFFF);
@@ -158,6 +159,6 @@ var zlib = function(Worker, fromCharCode) {
 	};
 	return zlib;
 	function uuid() {
-		return Date.now() * (Math.random() + 0.5);
+		return (Date.now() * (Math.random() + 0.5)).toString(36);
 	}
 }(Worker, String.fromCharCode);
