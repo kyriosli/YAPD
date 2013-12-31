@@ -72,13 +72,14 @@ var zlib = function(Worker, fromCharCode) {
 				};
 				return worker;
 			};
-			return function(buffer, level, cb) {
+			return function(buffer, level, headers, cb) {
 				var id = uuid();
 				jobs[id] = cb;
 				getWorker().postMessage({
 					id : id,
 					buffer : buffer,
-					level : level
+					level : level,
+					headers : headers
 				}, [ buffer ]);
 			};
 		}(),

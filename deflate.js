@@ -1490,7 +1490,7 @@
 		obj.addEventListener("message", function(event) {
 			var message = event.data;
 
-			var ret = deflate(message.buffer, message.level);
+			var ret = deflate(message.buffer, message.level, message.headers);
 			obj.postMessage({
 				buffer : ret,
 				id : message.id

@@ -1,13 +1,13 @@
-~function(PNG) {
+~function(PNG, zlib) {
 	"use strict";
+	var undefined = void 0;
+
 	var defaults = {
 		platte : false,
 		colors : 256,
 		alpha : true,
 		level : 9
 	};
-
-	var exports = window.exports = {};
 
 	var crc_table = Array(256);
 
@@ -41,17 +41,156 @@
 			}
 			arr = arr2;
 		}
-		arr = filter(arr, options.alpha ? 4 : 3, width, height);
 
 		return {
 			IHDR : IHDR(width, height, 8, options.alpha ? 6 : 2),
-			IDAT : arr.buffer,
+			IDAT : filter(arr, options.alpha ? 4 : 3, 8, width, height).buffer,
 			IEND : new ArrayBuffer(0)
 		};
 	}
 
 	function platteFilter(options, arr, width, height) {
-		throw 1;
+		var bitDepth;
+		switch (options.colors) {
+		case 2:
+			bitDepth = 1;
+			break;
+		case 4:
+			bitDepth = 2;
+			break;
+		case 16:
+			bitDepth = 4;
+			break;
+		case 256:
+			bitDepth = 8;
+			break;
+		default:
+			throw "wrong color count";
+		}
+		var k = options.colors, alpha = options.alpha, start = +alpha;
+
+		// 使用kmeans方法进行聚类
+		var L = arr.length, N = L >> 2; // rgba
+		var groups = new Uint8Array(N), averages = new Float64Array(k << 2);
+
+		// 第一步：找出k个不相同的值
+		var keys = {}, found = start;
+		var colorArr = new Uint32Array(arr.buffer, arr.byteOffset, N);
+		for ( var i = 0; i < L; i += 4) {
+			if (!arr[i + 3]) {
+				if (alpha)
+					continue; // 忽略透明像素
+				colorArr[i] = 0xFFFFFFFF;// 透明像素设为白色
+			}
+			var rgb = colorArr[i >> 2] & 0xFFFFFF;
+			if (keys[rgb] === undefined) {
+				var m = found++ << 2;
+				averages[m] = arr[i];
+				averages[m + 1] = arr[i + 1];
+				averages[m + 2] = arr[i + 2];
+				if (found === k)
+					break;
+				keys[rgb] = 1;
+			}
+		}
+		if (found < k) {
+			if (found <= 2) {
+				k = 2;
+				bitDepth = 1;
+			} else if (found <= 4) {
+				k = 4;
+				bitDepth = 2;
+			} else if (found <= 16) {
+				k = 16;
+				bitDepth = 4;
+			}
+			// console.log('colors found: ' + found + ',k=' + k);
+		}
+
+		for ( var iterated = 0; iterated < 10; iterated++) {
+			// 分组
+			var changed = 0;
+			var sums = new Uint32Array(found << 2);
+			for ( var i = 0; i < L; i += 4) {
+				// 透明像素, 始终使用颜色#0
+				if (!arr[i + 3]) {
+					continue;
+				}
+
+				var minDistance = 196608, min = -1;
+				var r = arr[i], g = arr[i + 1], b = arr[i + 2];
+				for ( var j = start; j < found; j++) {
+					var m = j << 2;
+					var dr = r - averages[m], dg = g - averages[m + 1], db = b - averages[m + 2], norm = dr * dr + dg * dg + db
+						* db;
+					if (norm === 0) {
+						minDistance = 0;
+						min = j;
+						break;
+					}
+					if (norm < minDistance) {
+						minDistance = norm;
+						min = j;
+					}
+				}
+				if (groups[i >> 2] !== min) {
+					changed++;
+					groups[i >> 2] = min;
+				}
+
+				// 更新平均值
+				var j = min << 2, count = ++sums[j + 3], sumr = sums[j] += r, sumg = sums[j + 1] += g, sumb = sums[j + 2] += b;
+				if (minDistance) {
+					averages[j] = sumr / count;
+					averages[j + 1] = sumg / count;
+					averages[j + 2] = sumb / count;
+				}
+
+			}
+			if (!changed)
+				break;
+			console.log('iterated:' + iterated + ',changed:' + changed);
+		}
+		var round = Math.round;
+		var platte = new Uint8Array(found * 3);
+		for ( var i = 0, j = 0; i < found; i++) {
+			var m = i << 2;
+			platte[j++] = round(averages[m]);
+			platte[j++] = round(averages[m + 1]);
+			platte[j++] = round(averages[m + 2]);
+		}
+		var ret = {
+			IHDR : IHDR(width, height, bitDepth, 3),
+			PLTE : platte.buffer
+		};
+		if (alpha) {
+			ret.tRNS = new ArrayBuffer(1);
+		}
+
+		var arr;
+		if (bitDepth === 8) {
+			arr = groups;
+		} else {
+			arr = new Uint8Array(Math.ceil(bitDepth / 8 * width) * height);
+			var pos = 0;
+			for ( var i = width; i <= N; i += width) {
+				for ( var j = i - width; j < i;) {
+					if (bitDepth === 4) {
+						arr[pos++] = groups[j++] << 4 | groups[j++];
+					} else if (bitDepth === 2) {
+						arr[pos++] = groups[j++] << 6 | groups[j++] << 4 | groups[j++] << 2 | groups[j++];
+					} else {
+						arr[pos++] = groups[j++] << 7 | groups[j++] << 6 | groups[j++] << 5 | groups[j++] << 4
+							| groups[j++] << 3 | groups[j++] << 2 | groups[j++] << 1 | groups[j++];
+					}
+				}
+			}
+		}
+
+		ret.IDAT = filter(arr, 1, bitDepth, width, height).buffer;
+		ret.IEND = new ArrayBuffer(0);
+		return ret;
+
 	}
 
 	function IHDR(width, height, bitDepth, colorMode) {
@@ -63,8 +202,8 @@
 		return ret;
 	}
 
-	function filter(arr, bytesPerPixel, width, height) {
-		var scanlineLen = bytesPerPixel * width;
+	function filter(arr, bytesPerPixel, bitDepth, width, height) {
+		var scanlineLen = Math.ceil(bytesPerPixel * bitDepth / 8 * width);
 		var filtered = new Uint8Array(height + arr.length);
 		var filters = {};
 		var buf1 = new Uint8Array(scanlineLen), // sub
@@ -110,12 +249,11 @@
 
 			filtered[m] = filter[0];
 			filtered.set(filter[1], m + 1);
-			// log('set', m, filter[0]);
 
 			start = end;
 			m += scanlineLen + 1;
 		}
-
+		window.filtered = new Uint8Array(filtered.buffer.slice());
 		return filtered;
 
 		function addFilter(filter, arr) {
@@ -134,11 +272,6 @@
 			sum2 += xi * xi;
 		}
 		return sum2 - sum * sum / N;
-	}
-
-	function deflate(buffer, level, headers) {
-		deflate = exports.deflate;
-		return deflate(buffer, level, headers);
 	}
 
 	PNG.ColorMode = {
@@ -171,31 +304,34 @@
 		var chunks = filter(options, arr, canvas.width, canvas.height);
 		var names = Object.keys(chunks);
 
-		chunks.IDAT = deflate(chunks.IDAT, options.level, true);
-		console.log(chunks);
-		var len = 8;
-		names.forEach(function(name) {
-			len += chunks[name].byteLength + 12;
+		chunks.IDAT = zlib.deflate(chunks.IDAT, options.level, true, function(buffer) {
+			chunks.IDAT = buffer;
+			var len = 8;
+			names.forEach(function(name) {
+				len += chunks[name].byteLength + 12;
+			});
+
+			buffer = new ArrayBuffer(len);
+
+			var arr = new Uint8Array(buffer), view = new DataView(buffer);
+			view.setUint32(0, 0x89504E47);
+			view.setUint32(4, 0x0D0A1A0A);
+			var i = 8;
+			names.forEach(function(name) {
+				var chunk = chunks[name], Len = chunk.byteLength, end = i + 8 + Len;
+				view.setUint32(i, Len);
+				view.setUint8(i + 4, name.charCodeAt(0));
+				view.setUint8(i + 5, name.charCodeAt(1));
+				view.setUint8(i + 6, name.charCodeAt(2));
+				view.setUint8(i + 7, name.charCodeAt(3));
+				var arr2 = new Uint8Array(chunk);
+				arr.set(arr2, i + 8);
+				view.setUint32(end, crc32(arr, i + 4, end));
+				i = end + 4;
+			});
+			cb(buffer);
 		});
 
-		var buffer = new ArrayBuffer(len), arr = new Uint8Array(buffer);
-		var view = new DataView(buffer);
-		view.setUint32(0, 0x89504E47);
-		view.setUint32(4, 0x0D0A1A0A);
-		var i = 8;
-		names.forEach(function(name) {
-			var chunk = chunks[name], Len = chunk.byteLength, end = i + 8 + Len;
-			view.setUint32(i, Len);
-			view.setUint8(i + 4, name.charCodeAt(0));
-			view.setUint8(i + 5, name.charCodeAt(1));
-			view.setUint8(i + 6, name.charCodeAt(2));
-			view.setUint8(i + 7, name.charCodeAt(3));
-			var arr2 = new Uint8Array(chunk);
-			arr.set(arr2, i + 8);
-			view.setUint32(end, crc32(arr, i + 4, end));
-			i = end + 4;
-		});
-		cb(buffer);
 	};
 
-}(typeof PNG === 'undefined' ? (this.PNG = {}) : PNG);
+}(typeof PNG === 'undefined' ? (this.PNG = {}) : PNG, zlib);

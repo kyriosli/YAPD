@@ -189,8 +189,9 @@
 			}
 			png.datas = null;
 			// Step.2 Decode data
-			zlib.inflate(buffer, false, function(buffer) {window.inflated=buffer;
+			zlib.inflate(buffer, false, function(buffer) {
 				var data = new Uint8Array(buffer);
+
 				// Step.3 Unfilter data
 				var bytesPerPixel, scanlineLen = Math.ceil((bytesPerPixel = png.bitDepth / 8 * colorChannels[png.colorMode])
 					* png.width);
@@ -207,7 +208,7 @@
 							}
 							break;
 						}
-						console.log('found up at first line');
+						// console.log('found up at first line');
 					case 0: // None
 						pixels.set(new Uint8Array(buffer, i, scanlineLen), p);
 						p += scanlineLen;
@@ -242,7 +243,7 @@
 							}
 							break;
 						}
-						console.log('found paeth at first line');
+						// console.log('found paeth at first line');
 					case 1: // Sub
 						while (i < start)
 							pixels[p++] = data[i++];

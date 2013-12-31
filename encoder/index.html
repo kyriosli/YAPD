@@ -8,7 +8,7 @@
 <script src="png_encode.js"></script>
 </head>
 <body style="background: -webkit-canvas(squares)">
-	<img src="../rgba.png" /> 
+	<img src="../nodejs.png" />
 	<script>
 		~function() {
 			var ctx = document.getCSSCanvasContext("2d", "squares", 16, 16);
@@ -33,30 +33,41 @@
 			PNG.encode(canvas, {}, function(buffer) {
 				console.timeEnd('PNG.encode: default options');
 				console.log('PNG.encode: ' + buffer.byteLength + 'B');
-				console.log([].map.call(new Uint8Array(buffer, 0, 60), function(num) {
-					return (num < 16 ? '0' : '') + num.toString(16).toUpperCase();
-				}));
-				var blob = new Blob([ buffer ], {
-					type : 'image/png'
-				});
-				console.log(blob);
+				append(buffer);
+				/*
+				new PNG(new Uint8Array(buffer)).onload = function() {
+					document.body.appendChild(this.toCanvas());
+				};
+				 */
 
+				console.time('PNG.encode: {platte:true, colors: 256, alpha: true}');
+				PNG.encode(canvas, {
+					platte : true,
+					colors : 256
+				}, function(buffer) {
+					console.timeEnd('PNG.encode: {platte:true, colors: 256, alpha: true}');
+					console.log('PNG.encode: ' + buffer.byteLength + 'B');
+					append(buffer);
+
+					new PNG(new Uint8Array(buffer)).onload = function() {
+						document.body.appendChild(this.toCanvas());
+					};
+				});
+			});
+			this.width = 400;
+
+			function append(buffer) {
 				var img = new Image();
 				img.src = URL.createObjectURL(new Blob([ buffer ], {
 					type : 'image/png'
 				}));
 				img.onload = function() {
-					document.body.appendChild(this);
-					this.width = 400;
 					URL.revokeObjectURL(this.src);
 				}
-				new PNG(new Uint8Array(buffer)).onload = function() {
-					document.body.appendChild(this.toCanvas());
-				};
-			});
-			this.width = 400;
+				document.body.appendChild(img);
+
+			}
 		};
 	</script>
-	<script src="../deflate.js"></script>
 </body>
 </html>
