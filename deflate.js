@@ -1,6 +1,7 @@
 // https://github.com/imaya/js
 (function(obj, Uint8Array, Uint16Array, Uint32Array) {
 	'use strict';
+	var undefined = void 0;
 	/**
 	 * カスタムハフマン符号で使用するヒープ実装
 	 * 
@@ -378,16 +379,14 @@
 	 * @const
 	 * @type {number}
 	 */
-	var Deflate_Lz77MinLength = 3;
-
+	// var 3 = 3;
 	/**
 	 * LZ77 の最大マッチ長
 	 * 
 	 * @const
 	 * @type {number}
 	 */
-	var Deflate_Lz77MaxLength = 258;
-
+	// var Deflate_Lz77MaxLength = 258;
 	/**
 	 * LZ77 のウィンドウサイズ
 	 * 
@@ -799,287 +798,202 @@
 	};
 
 	/**
-	 * マッチ情報
-	 * 
-	 * @param {!number}
-	 *            length マッチした長さ.
-	 * @param {!number}
-	 *            backwardDistance マッチ位置との距離.
-	 * @constructor
-	 */
-	var Deflate_Lz77Match = function(length, backwardDistance) {
-		/** @type {number} match length. */
-		this.length = length;
-		/** @type {number} backward distance. */
-		this.backwardDistance = backwardDistance;
-	};
-
-	/**
-	 * 長さ符号テーブル. [コード, 拡張ビット, 拡張ビット長] の配列となっている.
-	 * 
-	 * @const
-	 * @type {!(Array.<number>|Uint32Array)}
-	 */
-	Deflate_Lz77Match.LengthCodeTable = (function(table) {
-		return new Uint32Array(table);
-	})((function() {
-		/** @type {!Array} */
-		var table = [];
-		/** @type {number} */
-		var i;
-		/** @type {!Array.<number>} */
-		var c;
-
-		for (i = 3; i <= 258; i++) {
-			c = code(i);
-			table[i] = (c[2] << 24) | (c[1] << 16) | c[0];
-		}
-
-		/**
-		 * @param {number}
-		 *            length lz77 length.
-		 * @return {!Array.<number>} lz77 codes.
-		 */
-		function code(length) {
-			switch (true) {
-			case (length === 3):
-				return [ 257, length - 3, 0 ];
-				break;
-			case (length === 4):
-				return [ 258, length - 4, 0 ];
-				break;
-			case (length === 5):
-				return [ 259, length - 5, 0 ];
-				break;
-			case (length === 6):
-				return [ 260, length - 6, 0 ];
-				break;
-			case (length === 7):
-				return [ 261, length - 7, 0 ];
-				break;
-			case (length === 8):
-				return [ 262, length - 8, 0 ];
-				break;
-			case (length === 9):
-				return [ 263, length - 9, 0 ];
-				break;
-			case (length === 10):
-				return [ 264, length - 10, 0 ];
-				break;
-			case (length <= 12):
-				return [ 265, length - 11, 1 ];
-				break;
-			case (length <= 14):
-				return [ 266, length - 13, 1 ];
-				break;
-			case (length <= 16):
-				return [ 267, length - 15, 1 ];
-				break;
-			case (length <= 18):
-				return [ 268, length - 17, 1 ];
-				break;
-			case (length <= 22):
-				return [ 269, length - 19, 2 ];
-				break;
-			case (length <= 26):
-				return [ 270, length - 23, 2 ];
-				break;
-			case (length <= 30):
-				return [ 271, length - 27, 2 ];
-				break;
-			case (length <= 34):
-				return [ 272, length - 31, 2 ];
-				break;
-			case (length <= 42):
-				return [ 273, length - 35, 3 ];
-				break;
-			case (length <= 50):
-				return [ 274, length - 43, 3 ];
-				break;
-			case (length <= 58):
-				return [ 275, length - 51, 3 ];
-				break;
-			case (length <= 66):
-				return [ 276, length - 59, 3 ];
-				break;
-			case (length <= 82):
-				return [ 277, length - 67, 4 ];
-				break;
-			case (length <= 98):
-				return [ 278, length - 83, 4 ];
-				break;
-			case (length <= 114):
-				return [ 279, length - 99, 4 ];
-				break;
-			case (length <= 130):
-				return [ 280, length - 115, 4 ];
-				break;
-			case (length <= 162):
-				return [ 281, length - 131, 5 ];
-				break;
-			case (length <= 194):
-				return [ 282, length - 163, 5 ];
-				break;
-			case (length <= 226):
-				return [ 283, length - 195, 5 ];
-				break;
-			case (length <= 257):
-				return [ 284, length - 227, 5 ];
-				break;
-			case (length === 258):
-				return [ 285, length - 258, 0 ];
-				break;
-			default:
-				throw 'invalid length: ' + length;
-			}
-		}
-		;
-
-		return table;
-	})());
-
-	/**
-	 * 距離符号テーブル
-	 * 
-	 * @param {!number}
-	 *            dist 距離.
-	 * @return {!Array.<number>} コード、拡張ビット、拡張ビット長の配列.
-	 * @private
-	 */
-	Deflate_Lz77Match.prototype.getDistanceCode_ = function(dist) {
-		/** @type {!Array.<number>} distance code table. */
-		var r;
-
-		switch (true) {
-		case (dist === 1):
-			r = [ 0, dist - 1, 0 ];
-			break;
-		case (dist === 2):
-			r = [ 1, dist - 2, 0 ];
-			break;
-		case (dist === 3):
-			r = [ 2, dist - 3, 0 ];
-			break;
-		case (dist === 4):
-			r = [ 3, dist - 4, 0 ];
-			break;
-		case (dist <= 6):
-			r = [ 4, dist - 5, 1 ];
-			break;
-		case (dist <= 8):
-			r = [ 5, dist - 7, 1 ];
-			break;
-		case (dist <= 12):
-			r = [ 6, dist - 9, 2 ];
-			break;
-		case (dist <= 16):
-			r = [ 7, dist - 13, 2 ];
-			break;
-		case (dist <= 24):
-			r = [ 8, dist - 17, 3 ];
-			break;
-		case (dist <= 32):
-			r = [ 9, dist - 25, 3 ];
-			break;
-		case (dist <= 48):
-			r = [ 10, dist - 33, 4 ];
-			break;
-		case (dist <= 64):
-			r = [ 11, dist - 49, 4 ];
-			break;
-		case (dist <= 96):
-			r = [ 12, dist - 65, 5 ];
-			break;
-		case (dist <= 128):
-			r = [ 13, dist - 97, 5 ];
-			break;
-		case (dist <= 192):
-			r = [ 14, dist - 129, 6 ];
-			break;
-		case (dist <= 256):
-			r = [ 15, dist - 193, 6 ];
-			break;
-		case (dist <= 384):
-			r = [ 16, dist - 257, 7 ];
-			break;
-		case (dist <= 512):
-			r = [ 17, dist - 385, 7 ];
-			break;
-		case (dist <= 768):
-			r = [ 18, dist - 513, 8 ];
-			break;
-		case (dist <= 1024):
-			r = [ 19, dist - 769, 8 ];
-			break;
-		case (dist <= 1536):
-			r = [ 20, dist - 1025, 9 ];
-			break;
-		case (dist <= 2048):
-			r = [ 21, dist - 1537, 9 ];
-			break;
-		case (dist <= 3072):
-			r = [ 22, dist - 2049, 10 ];
-			break;
-		case (dist <= 4096):
-			r = [ 23, dist - 3073, 10 ];
-			break;
-		case (dist <= 6144):
-			r = [ 24, dist - 4097, 11 ];
-			break;
-		case (dist <= 8192):
-			r = [ 25, dist - 6145, 11 ];
-			break;
-		case (dist <= 12288):
-			r = [ 26, dist - 8193, 12 ];
-			break;
-		case (dist <= 16384):
-			r = [ 27, dist - 12289, 12 ];
-			break;
-		case (dist <= 24576):
-			r = [ 28, dist - 16385, 13 ];
-			break;
-		case (dist <= 32768):
-			r = [ 29, dist - 24577, 13 ];
-			break;
-		default:
-			throw 'invalid distance';
-		}
-
-		return r;
-	};
-
-	/**
 	 * マッチ情報を LZ77 符号化配列で返す. なお、ここでは以下の内部仕様で符号化している [ CODE, EXTRA-BIT-LEN,
 	 * EXTRA, CODE, EXTRA-BIT-LEN, EXTRA ]
 	 * 
 	 * @return {!Array.<number>} LZ77 符号化 byte array.
 	 */
-	Deflate_Lz77Match.prototype.toLz77Array = function() {
-		/** @type {number} */
-		var length = this.length;
-		/** @type {number} */
-		var dist = this.backwardDistance;
-		/** @type {Array} */
-		var codeArray = [];
-		/** @type {number} */
-		var pos = 0;
-		/** @type {!Array.<number>} */
-		var code;
+	var toLz77Array = function() {
+		/**
+		 * 長さ符号テーブル. [コード, 拡張ビット, 拡張ビット長] の配列となっている.
+		 * 
+		 * @const
+		 * @type {!(Array.<number>|Uint32Array)}
+		 */
+		var lengthCodeTable = new Uint32Array(256);
 
-		// length
-		code = Deflate_Lz77Match.LengthCodeTable[length];
-		codeArray[pos++] = code & 0xffff;
-		codeArray[pos++] = (code >> 16) & 0xff;
-		codeArray[pos++] = code >> 24;
+		for ( var length = 3; length <= 258; length++) {
+			var arr;
+			switch (true) {
+			case (length <= 10):
+				arr = [ 254 + length, 0, 0 ];
+				break;
+			case (length <= 12):
+				arr = [ 265, length - 11, 1 ];
+				break;
+			case (length <= 14):
+				arr = [ 266, length - 13, 1 ];
+				break;
+			case (length <= 16):
+				arr = [ 267, length - 15, 1 ];
+				break;
+			case (length <= 18):
+				arr = [ 268, length - 17, 1 ];
+				break;
+			case (length <= 22):
+				arr = [ 269, length - 19, 2 ];
+				break;
+			case (length <= 26):
+				arr = [ 270, length - 23, 2 ];
+				break;
+			case (length <= 30):
+				arr = [ 271, length - 27, 2 ];
+				break;
+			case (length <= 34):
+				arr = [ 272, length - 31, 2 ];
+				break;
+			case (length <= 42):
+				arr = [ 273, length - 35, 3 ];
+				break;
+			case (length <= 50):
+				arr = [ 274, length - 43, 3 ];
+				break;
+			case (length <= 58):
+				arr = [ 275, length - 51, 3 ];
+				break;
+			case (length <= 66):
+				arr = [ 276, length - 59, 3 ];
+				break;
+			case (length <= 82):
+				arr = [ 277, length - 67, 4 ];
+				break;
+			case (length <= 98):
+				arr = [ 278, length - 83, 4 ];
+				break;
+			case (length <= 114):
+				arr = [ 279, length - 99, 4 ];
+				break;
+			case (length <= 130):
+				arr = [ 280, length - 115, 4 ];
+				break;
+			case (length <= 162):
+				arr = [ 281, length - 131, 5 ];
+				break;
+			case (length <= 194):
+				arr = [ 282, length - 163, 5 ];
+				break;
+			case (length <= 226):
+				arr = [ 283, length - 195, 5 ];
+				break;
+			case (length <= 257):
+				arr = [ 284, length - 227, 5 ];
+				break;
+			case (length === 258):
+				arr = [ 285, length - 258, 0 ];
+				break;
+			}
+			lengthCodeTable[length - 3] = arr[0] << 16 | arr[1] << 8 | arr[2];
+		}
 
-		// distance
-		code = this.getDistanceCode_(dist);
-		codeArray[pos++] = code[0];
-		codeArray[pos++] = code[1];
-		codeArray[pos++] = code[2];
+		var distanceCodeTable = new Uint32Array(32768);
+		for ( var dist = 1; dist <= 32768; dist++) {
+			var r;
+			switch (true) {
+			case (dist === 1):
+				r = [ 0, dist - 1, 0 ];
+				break;
+			case (dist === 2):
+				r = [ 1, dist - 2, 0 ];
+				break;
+			case (dist === 3):
+				r = [ 2, dist - 3, 0 ];
+				break;
+			case (dist === 4):
+				r = [ 3, dist - 4, 0 ];
+				break;
+			case (dist <= 6):
+				r = [ 4, dist - 5, 1 ];
+				break;
+			case (dist <= 8):
+				r = [ 5, dist - 7, 1 ];
+				break;
+			case (dist <= 12):
+				r = [ 6, dist - 9, 2 ];
+				break;
+			case (dist <= 16):
+				r = [ 7, dist - 13, 2 ];
+				break;
+			case (dist <= 24):
+				r = [ 8, dist - 17, 3 ];
+				break;
+			case (dist <= 32):
+				r = [ 9, dist - 25, 3 ];
+				break;
+			case (dist <= 48):
+				r = [ 10, dist - 33, 4 ];
+				break;
+			case (dist <= 64):
+				r = [ 11, dist - 49, 4 ];
+				break;
+			case (dist <= 96):
+				r = [ 12, dist - 65, 5 ];
+				break;
+			case (dist <= 128):
+				r = [ 13, dist - 97, 5 ];
+				break;
+			case (dist <= 192):
+				r = [ 14, dist - 129, 6 ];
+				break;
+			case (dist <= 256):
+				r = [ 15, dist - 193, 6 ];
+				break;
+			case (dist <= 384):
+				r = [ 16, dist - 257, 7 ];
+				break;
+			case (dist <= 512):
+				r = [ 17, dist - 385, 7 ];
+				break;
+			case (dist <= 768):
+				r = [ 18, dist - 513, 8 ];
+				break;
+			case (dist <= 1024):
+				r = [ 19, dist - 769, 8 ];
+				break;
+			case (dist <= 1536):
+				r = [ 20, dist - 1025, 9 ];
+				break;
+			case (dist <= 2048):
+				r = [ 21, dist - 1537, 9 ];
+				break;
+			case (dist <= 3072):
+				r = [ 22, dist - 2049, 10 ];
+				break;
+			case (dist <= 4096):
+				r = [ 23, dist - 3073, 10 ];
+				break;
+			case (dist <= 6144):
+				r = [ 24, dist - 4097, 11 ];
+				break;
+			case (dist <= 8192):
+				r = [ 25, dist - 6145, 11 ];
+				break;
+			case (dist <= 12288):
+				r = [ 26, dist - 8193, 12 ];
+				break;
+			case (dist <= 16384):
+				r = [ 27, dist - 12289, 12 ];
+				break;
+			case (dist <= 24576):
+				r = [ 28, dist - 16385, 13 ];
+				break;
+			case (dist <= 32768):
+				r = [ 29, dist - 24577, 13 ];
+				break;
+			}
 
-		return codeArray;
-	};
+			distanceCodeTable[dist - 1] = r[0] << 24 | r[1] << 8 | r[2];
+		}
+
+		var cached = {};
+		return function toLz77Array(length, dist) {
+			var key = (dist << 9) + length;
+			if (cached[key] !== undefined)
+				return cached[key];
+			var codeLen = lengthCodeTable[length - 3], codeDist = distanceCodeTable[dist - 1];
+			return cached[key] = new Uint16Array([ codeLen >> 16 & 0xFFFF, codeLen >> 8 & 0xFF, codeLen & 0xFF,
+				codeDist >> 24 & 0xFF, codeDist >> 8 & 0xFFFF, codeDist & 0xFF ]);
+		};
+	}();
 
 	/**
 	 * LZ77 実装
@@ -1089,31 +1003,16 @@
 	 * @return {!(Array.<number>|Uint16Array)} LZ77 符号化した配列.
 	 */
 	RawDeflate.prototype.lz77 = function(dataArray) {
-		/** @type {number} input position */
-		var position;
-		/** @type {number} input length */
-		var length;
-		/** @type {number} loop counter */
-		var i;
-		/** @type {number} loop limiter */
-		var il;
-		/** @type {number} chained-hash-table key */
-		var matchKey;
-		/** @type {Object.<number, Array.<number>>} chained-hash-table */
-		var table = {};
+		var length = dataArray.length;
 		/**
 		 * @const
 		 * @type {number}
 		 */
 		var windowSize = Deflate_WindowSize;
-		/** @type {Array.<number>} match list */
-		var matchList;
-		/** @type {Deflate_Lz77Match} longest match */
-		var longestMatch;
-		/** @type {Deflate_Lz77Match} previous longest match */
-		var prevMatch;
+		// assert(windowSize <= 32768)
+
 		/** @type {!(Array.<number>|Uint16Array)} lz77 buffer */
-		var lz77buf = new Uint16Array(dataArray.length * 2);
+		var lz77buf = new Uint16Array(length << 1);
 		/** @type {number} lz77 output buffer pointer */
 		var pos = 0;
 		/** @type {number} lz77 skip length */
@@ -1122,114 +1021,83 @@
 		var freqsLitLen = new Uint32Array(286);
 		/** @type {!(Array.<number>|Uint32Array)} */
 		var freqsDist = new Uint32Array(30);
-		/** @type {number} */
-		var lazy = this.lazy;
-		/** @type {*} temporary variable */
-		var tmp;
+
+		/**
+		 * 每一个位置对应的key前一次出现的位置与当前位置的距离，用65535填充
+		 */
+		var jumpTable = new Uint16Array(length);
+		jumpTable[0] = jumpTable[1] = jumpTable[2] = jumpTable[3] = 65535;
+		var n = 4;
+		for ( var end = length >> 1; n <= end; n <<= 1) {
+			jumpTable.set(jumpTable.subarray(0, n), n);
+		}
+		if (n < length) {
+			jumpTable.set(jumpTable.subarray(0, length - n), n);
+		}
+
+		/**
+		 * 每一个key的最后一次出现位置
+		 */
+		var lastPos = {};
+
+		var min = Math.min;
+
+		var matchMaxDistance;
 
 		// 初期化
 		freqsLitLen[256] = 1; // EOB の最低出現回数は 1
 
-		/**
-		 * マッチデータの書き込み
-		 * 
-		 * @param {Deflate_Lz77Match}
-		 *            match LZ77 Match data.
-		 * @param {!number}
-		 *            offset スキップ開始位置(相対指定).
-		 * @private
-		 */
-		function writeMatch(match, offset) {
-			/** @type {Array.<number>} */
-			var lz77Array = match.toLz77Array();
-			/** @type {number} */
-			var i;
-			/** @type {number} */
-			var il;
-
-			for (i = 0, il = lz77Array.length; i < il; ++i) {
-				lz77buf[pos++] = lz77Array[i];
-			}
-			freqsLitLen[lz77Array[0]]++;
-			freqsDist[lz77Array[3]]++;
-			skipLength = match.length + offset - 1;
-			prevMatch = null;
-		}
-
 		// LZ77 符号化
-		for (position = 0, length = dataArray.length; position < length; ++position) {
+		for ( var position = 0, length = dataArray.length; position < length; ++position) {
 			// ハッシュキーの作成
-			for (matchKey = 0, i = 0, il = Deflate_Lz77MinLength; i < il; ++i) {
-				if (position + i === length) {
-					break;
-				}
-				matchKey = (matchKey << 8) | dataArray[position + i];
-			}
+			var matchKey = dataArray[position] << 16 | dataArray[position + 1] << 8 | dataArray[position + 2];
 
-			// テーブルが未定義だったら作成する
-			if (table[matchKey] === void 0) {
-				table[matchKey] = [];
+			var last = lastPos[matchKey];
+			if (last >= 0 && position - last < windowSize) {
+				jumpTable[position] = position - last;
+				// console.log('set jump distance: ' + position + ' is ' +
+				// jumpTable[position]);
+			} else { // last === undefined
+				last = -65536;
 			}
-			matchList = table[matchKey];
+			lastPos[matchKey] = position;
 
 			// skip
 			if (skipLength-- > 0) {
-				matchList.push(position);
 				continue;
 			}
 
-			// マッチテーブルの更新 (最大戻り距離を超えているものを削除する)
-			while (matchList.length > 0 && position - matchList[0] > windowSize) {
-				matchList.shift();
-			}
-
 			// データ末尾でマッチしようがない場合はそのまま流しこむ
-			if (position + Deflate_Lz77MinLength >= length) {
-				if (prevMatch) {
-					writeMatch(prevMatch, -1);
-				}
-
-				for (i = 0, il = length - position; i < il; ++i) {
-					tmp = dataArray[position + i];
-					lz77buf[pos++] = tmp;
-					++freqsLitLen[tmp];
+			if (position + 3 >= length) {
+				for (; position < length; position++) {
+					freqsLitLen[lz77buf[pos++] = dataArray[position]]++;
 				}
 				break;
 			}
 
 			// マッチ候補から最長のものを探す
-			if (matchList.length > 0) {
-				longestMatch = searchLongestMatch(dataArray, position, matchList);
+			// var end = Math.min(258 + position, length);
+			var end = min(length, 258 + position);
 
-				if (prevMatch) {
-					// 現在のマッチの方が前回のマッチよりも長い
-					if (prevMatch.length < longestMatch.length) {
-						// write previous literal
-						tmp = dataArray[position - 1];
-						lz77buf[pos++] = tmp;
-						++freqsLitLen[tmp];
+			// 第一次循环: 从距离>258处开始，尝试查找matchMax===258
+			var matchMax = searchMaxMatch(last, 258, windowSize, 3);
 
-						// write current match
-						writeMatch(longestMatch, 0);
-					} else {
-						// write previous match
-						writeMatch(prevMatch, -1);
-					}
-				} else if (longestMatch.length < lazy) {
-					prevMatch = longestMatch;
-				} else {
-					writeMatch(longestMatch, 0);
-				}
-				// 前回マッチしていて今回マッチがなかったら前回のを採用
-			} else if (prevMatch) {
-				writeMatch(prevMatch, -1);
-			} else {
-				tmp = dataArray[position];
-				lz77buf[pos++] = tmp;
-				++freqsLitLen[tmp];
+			if (matchMax < 258) {
+				// 第二次循环: 在距离<258内，尝试查找更大的match
+				matchMax = searchMaxMatch(last, matchMax, 258, matchMax);
 			}
 
-			matchList.push(position); // マッチテーブルに現在の位置を保存
+			if (matchMax > 3) {
+				var lz77Array = toLz77Array(matchMax, matchMaxDistance);
+				lz77buf.set(lz77Array, pos);
+				pos += 6;
+
+				freqsLitLen[lz77Array[0]]++;
+				freqsDist[lz77Array[3]]++;
+				skipLength = matchMax - 1;
+			} else {
+				freqsLitLen[lz77buf[pos++] = dataArray[position]]++;
+			}
 		}
 
 		// 終端処理
@@ -1239,75 +1107,38 @@
 		this.freqsDist = freqsDist;
 
 		return lz77buf.subarray(0, pos);
+
+		function searchMaxMatch(last, minDistance, maxDistance, matchMax) {
+			permatch: for ( var distance = position - last, jumpLen; distance < maxDistance; jumpLen = jumpTable[last], distance += jumpLen, last -= jumpLen) {
+				if (distance < minDistance)
+					continue;
+				for ( var j = matchMax - 1; j >= 3; j--) {
+					if (dataArray[last + j] !== dataArray[position + j]) {
+						continue permatch;
+					}
+				}
+
+				// 最長一致探索
+				var cursor = position + matchMax;
+				var tail = min(end, position + distance);
+				while (cursor < tail && dataArray[cursor - distance] === dataArray[cursor]) {
+					cursor++;
+				}
+				var matchLength = cursor - position;
+
+				// マッチ長が同じ場合は後方を優先
+				if (matchLength > matchMax) {
+					matchMax = matchLength;
+					matchMaxDistance = distance;
+					if (matchMax === 258) {
+						return 258;
+					}
+				}
+			}
+			return matchMax;
+		}
+
 	};
-
-	/**
-	 * マッチした候補の中から最長一致を探す
-	 * 
-	 * @param {!Object}
-	 *            data plain data byte array.
-	 * @param {!number}
-	 *            position plain data byte array position.
-	 * @param {!Array.
-	 *            <number>} matchList 候補となる位置の配列.
-	 * @return {!Deflate_Lz77Match} 最長かつ最短距離のマッチオブジェクト.
-	 * @private
-	 */
-	function searchLongestMatch(data, position, matchList) {
-		// assert(matchList.length > 0)
-		// 候補を後ろから 1 つずつ絞り込んでゆく
-		var i = matchList.length - 1;
-		// var end = Math.min(Deflate_Lz77MaxLength + position, data.length);
-		var end;
-		if ((end = data.length) > Deflate_Lz77MaxLength + position)
-			end = Deflate_Lz77MaxLength + position;
-		// end = end ^ ((end ^ Deflate_Lz77MaxLength) & -(Deflate_Lz77MaxLength
-		// - end));
-
-		var currentMatch = matchList[i];
-		// 最長一致探索
-		var cursor = position + Deflate_Lz77MinLength, distance = position - currentMatch;
-		while (cursor < end && data[cursor - distance] === data[cursor]) {
-			cursor++;
-		}
-
-		var matchMax = cursor - position;
-
-		if (matchMax === Deflate_Lz77MaxLength) {
-			return new Deflate_Lz77Match(matchMax, position - currentMatch);
-		}
-		// マッチ長が同じ場合は後方を優先
-		// 最長が確定したら後の処理は省略
-		// maxMatch > Deflate_Lz77MinLength
-		permatch: while (i--) {
-			var match = matchList[i];
-			for ( var j = matchMax - 1; j >= Deflate_Lz77MinLength; j--) {
-				if (data[match + j] !== data[position + j]) {
-					continue permatch;
-				}
-			}
-
-			// 最長一致探索
-			var distance = position - match, cursor = position + matchMax;
-
-			while (cursor < end && data[cursor - distance] === data[cursor]) {
-				cursor++;
-			}
-			var matchLength = cursor - position;
-
-			// マッチ長が同じ場合は後方を優先
-			if (matchLength > matchMax) {
-				currentMatch = match;
-				matchMax = matchLength;
-				// 最長が確定したら後の処理は省略
-				if (matchMax === Deflate_Lz77MaxLength) {
-					break;
-				}
-			}
-		}
-
-		return new Deflate_Lz77Match(matchMax, position - currentMatch);
-	}
 
 	/**
 	 * Tree-Transmit Symbols の算出 reference: PuTTY Deflate implementation

@@ -7,9 +7,15 @@
 <script src="../png.js"></script>
 <script src="png_encode.js"></script>
 </head>
-<body>
-	<img src="../rgba.png" />
+<body style="background: -webkit-canvas(squares)">
+	<img src="../rgba.png" /> 
 	<script>
+		~function() {
+			var ctx = document.getCSSCanvasContext("2d", "squares", 16, 16);
+			ctx.fillStyle = "#dbdbdb";
+			ctx.fillRect(8, 0, 8, 8);
+			ctx.fillRect(0, 8, 8, 8);
+		}();
 		document.querySelector('img').onload = function() {
 			console.log('test image: ' + this.width + 'x' + this.height)
 			var canvas = document.createElement('canvas');
@@ -50,7 +56,6 @@
 			});
 			this.width = 400;
 		};
-		window.exports = {};
 	</script>
 	<script src="../deflate.js"></script>
 </body>
