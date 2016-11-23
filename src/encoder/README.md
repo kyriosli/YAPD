@@ -2,6 +2,8 @@
 
 Pure JavaScript implemented png encoder that supports modern browsers as well as Node.JS
 
+View [this demo](http://kyrios.li/YAPD/test/encoder.html)
+
 Supported PNG features:
 
   - PNG-8 2/4/16/256 colored platte mode with transparency
