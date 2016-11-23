@@ -1,0 +1,24 @@
+{
+  "name": "yapd",
+  "version": "1.0.0",
+  "description": "Pure JavaScript PNG decoder/encoder",
+  "main": "src/index.node.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kyriosli/yapd.git"
+  },
+  "author": "Kyrios LI",
+  "keywords": [
+    "JavaScript",
+    "PNG",
+    "encoder"
+  ],
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kyriosli/yapd/issues"
+  },
+  "homepage": "https://github.com/kyriosli/yapd#readme"
+}

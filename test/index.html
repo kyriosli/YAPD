@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<head></head>
+<body>
+<canvas></canvas>
+<script src="../src/zlib/zlib.js"></script>
+<script src="../src/png.js"></script>
+<script>
+    PNG.load('rgba.png').then(function (png) {
+        png.renderTo(document.querySelector('canvas'));
+    });
+</script>
+</body>
+</html>

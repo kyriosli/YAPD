@@ -1,0 +1,81 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <style type="text/css">
+        body {
+            margin: 0;
+            background: #CCC;
+        }
+
+        div {
+            float: left;
+            margin: 12px;
+            padding: 12px;
+            background: white;
+            border: 1px solid #EEE;
+            box-shadow: 0 0 4px #DDD;
+            border-radius: 4px;
+        }
+
+        div h2 {
+            padding: 0 0 4px 0;
+            margin: 0;
+            font-size: 16px;
+            border-bottom: 1px solid #CCC;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <h2>2色索引</h2>
+    <canvas></canvas>
+</div>
+<div>
+    <h2>4色索引</h2>
+    <canvas></canvas>
+</div>
+<div>
+    <h2>16色索引(透明背景)</h2>
+    <canvas></canvas>
+</div>
+<div>
+    <h2>rgba</h2>
+    <canvas></canvas>
+</div>
+<input type="file" accept="image/png"/>
+</body>
+<script src="../src/zlib/zlib.js"></script>
+<script src="../src/zlib/inflate.js"></script>
+<script src="../src/png.js"></script>
+<script>
+    ~function (PNG) {
+        document.querySelector('input').addEventListener('change', function () {
+            var file = this.files[0];
+            if (!file)
+                return;
+            var reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            reader.onload = function () {
+                PNG.decode(reader.result).then(function (png) {
+                    var canvas = document.createElement('canvas');
+                    png.renderTo(canvas);
+                    document.body.appendChild(canvas);
+                });
+            };
+        });
+
+        var imgs = document.querySelectorAll('canvas');
+        load('node-platte-2.png', 0);
+        load('node-platte-4.png', 1);
+        load('node-platte-16-transparent.png', 2);
+        load('rgba.png', 3);
+
+        function load(url, idx) {
+            PNG.load(url).then(function (png) {
+                png.renderTo(imgs[idx]);
+            });
+        }
+    }(this.PNG);
+</script>
+</html>
