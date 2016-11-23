@@ -1,5 +1,4 @@
-(function () {
-    var exports = {};
+(function (factory) {
     var g;
     if (typeof window !== "undefined") {
         g = window
@@ -17,11 +16,8 @@
     } else {
         g.PNG = factory()
     }
-
-    function factory() {
-        return exports;
-    }
-
+})(function () {
+    var exports = {};
     exports.decode = decode;
     /**
      * @param {ArrayBuffer|Uint8Array} arr
@@ -72,10 +68,16 @@
         ctx.putImageData(imgData, 0, 0);
     };
 
-    var getBuffer = g.fetch ? function (url) {
+    var getBuffer = typeof fetch === 'function' ? function (url) {
         return fetch(url, {credentials: 'include'}).then(function (resp) {
             if (!resp.ok) throw new Error('E' + resp.status);
             return resp.arrayBuffer()
+        })
+    } : typeof Buffer === 'function' ? function (pathname) {
+        return new Promise(function (resolve, reject) {
+            require('fs').readFile(pathname, function (err, buf) {
+                err ? reject(err) : resolve(buf)
+            })
         })
     } : function (url) {
         return new Promise(function (resolve, reject) {
@@ -285,4 +287,5 @@
             });
         }
     };
-})();
+    return exports;
+});

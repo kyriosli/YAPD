@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>PNG encoding demo</title>
+    <script src="../src/zlib/zlib.js"></script>
+    <script src="../src/png.js"></script>
+    <script src="../src/encoder/png_encode.js"></script>
+    <style>
+        canvas {
+            max-width: 100%
+        }
+    </style>
+</head>
+<body>
+<img src="Portal-2-Both.jpg"/>
+<script>
+    document.querySelector('img').onload = function () {
+        console.log('test image: ' + this.width + 'x' + this.height)
+        var canvas = document.createElement('canvas');
+        canvas.width = this.width;
+        canvas.height = this.height;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(this, 0, 0);
+        console.time('canvas.toDataURL');
+        var ret = canvas.toDataURL();
+        var len = (ret.length - ret.indexOf(',') - 1) * 0.75;
+        console.timeEnd('canvas.toDataURL');
+        console.log('canvas.toDataURL: ' + len + 'B');
+
+        console.time('PNG.encode: default options');
+        PNG.encodeCanvas(canvas, {}).then(function (buffer) {
+            console.timeEnd('PNG.encode: default options');
+            console.log('PNG.encode(rgba): ' + buffer.byteLength + 'B');
+            append(buffer);
+
+            console.time('PNG.encode: {platte:true, colors: 256, alpha: true}');
+            PNG.encodeCanvas(canvas, {
+                platte: true,
+                colors: 256
+            }).then(function (buffer) {
+                console.timeEnd('PNG.encode: {platte:true, colors: 256, alpha: true}');
+                console.log('PNG.encode(platte): ' + buffer.byteLength + 'B');
+                append(buffer);
+                console.time('PNG.decode');
+                PNG.decode(new Uint8Array(buffer)).then(function (png) {
+                    console.timeEnd('PNG.decode');
+                    var canvas = document.createElement('canvas');
+                    png.renderTo(canvas);
+                    document.body.appendChild(canvas);
+                });
+            });
+        });
+        this.style.maxWidth = '100%';
+
+        function append(buffer) {
+            var img = new Image();
+            img.style.maxWidth = '100%';
+            img.src = URL.createObjectURL(new Blob([buffer], {
+                type: 'image/png'
+            }));
+            img.onload = function () {
+                URL.revokeObjectURL(this.src);
+            };
+            document.body.appendChild(img);
+
+        }
+    };
+</script>
+</body>
+</html>

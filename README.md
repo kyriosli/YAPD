@@ -28,7 +28,7 @@ In Node.JS:
 
 ```js
 var fs = require('fs')
-require('yapd').decode(fs.readFileSync('rgba.png'))
+require('yapd').load('rgba.png')
 ```
 
 ### Encoder support
@@ -37,9 +37,11 @@ PNG encoder is added. See [encoder](src/encoder/)
 
 ### API reference
 
-#### PNG.load(image_url)
+#### PNG.load(image_path)
 
-browser API that returns a promise of type `PNGImage`
+Returns a promise of type `PNGImage`.
+
+In web browsers, a `fetch` or `XHR` request is sent to get the content. In Node.JS, a local file is read.   
 
 ```js
 PNG.load('rgba.png').then(function (png) {
@@ -47,12 +49,13 @@ PNG.load('rgba.png').then(function (png) {
 })
 ```
 
-#### PNG.decode(arrayBuffer|uint8Array)
+#### PNG.decode(buf: Buffer|ArrayBuffer|Uint8Array)
 
-both browser and Node.JS API that returns a promise of type `PNGImage`
+Decodes the png image file content.
 
 ```js
-png.decode(buffer).then(function (png) {
+var buf = ...
+png.decode(buf).then(function (png) {
     // png instanceof PNGImage
 })
 ```
