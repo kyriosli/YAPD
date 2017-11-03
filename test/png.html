@@ -57,7 +57,9 @@
             var reader = new FileReader();
             reader.readAsArrayBuffer(file);
             reader.onload = function () {
+                console.time('decode loaded file');
                 PNG.decode(reader.result).then(function (png) {
+                    console.timeEnd('decode loaded file');
                     var canvas = document.createElement('canvas');
                     png.renderTo(canvas);
                     document.body.appendChild(canvas);
